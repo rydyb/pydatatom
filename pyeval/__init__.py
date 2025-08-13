@@ -4,6 +4,7 @@ from .evaluation import (
     MeanImageEvaluation,
     FixedSpotDetectionEvaluation,
     FixedSpotHistogramEvaluation,
+    FixedSpotSpectroscopyEvaluation,
 )
 from .analysis.image.spot import SpotDetector, TopNNMSSpotDetector
 from .analysis.models import (

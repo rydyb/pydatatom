@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd
+import lmfit
 from .dataset import Dataset, TransformDataset
 from .transform import MeanSpotCount
 from .analysis.image.spot import TopNNMSSpotDetector
@@ -138,10 +140,6 @@ class FixedSpotHistogramEvaluation(FixedSpotDetectionEvaluation):
             self.spot_counts_binedges[:, :, 1:] - self.spot_counts_binedges[:, :, :-1]
         )
 
-        self.spot_counts_bincenters = (
-            self.spot_counts_binedges[:, :, 1:] + self.spot_counts_binedges[:, :, :-1]
-        ) / 2
-
         self.spots = self.spot_counts > self.spot_counts_thresholds
 
     def plot_spot_sums_histograms(self):
@@ -214,3 +212,132 @@ class FixedSpotHistogramEvaluation(FixedSpotDetectionEvaluation):
 
         plt.tight_layout()
         plt.show()
+
+
+class FixedSpotSpectroscopyEvaluation(FixedSpotHistogramEvaluation):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.df = None
+
+    def evaluate(self, dataset):
+        df = pd.DataFrame(
+            list(
+                TransformDataset(
+                    dataset,
+                    lambda x: {
+                        key: value
+                        for (key, value) in x.items()
+                        if isinstance(value, float)
+                    },
+                )
+            )
+        )
+        df = df.loc[:, df.nunique(dropna=False).ne(1)]  # drop constant parameters
+
+        super().evaluate(dataset)
+
+        spots = self.spots.copy()
+        spots[:, 0, :] |= spots[:, 1, :]
+
+        df["probability"] = spots[:, 1].sum(axis=-1) / spots[:, 0].sum(axis=-1)
+
+        self.df = df
+
+    def plot_resonance(
+        self, param: str, show_residuals: bool = True, save_path: str = None
+    ):
+        from matplotlib import pyplot as plt
+
+        g = (
+            self.df.groupby(param)["probability"]
+            .agg(mean="mean", std="std", n="size")
+            .reset_index()
+            .sort_values(param)
+        )
+
+        x = g[param].to_numpy(float)
+        y = g["mean"].to_numpy(float)
+        std = g["std"].to_numpy(float)
+        n = g["n"].to_numpy(float)
+        sigma = std / np.sqrt(np.maximum(n, 1))
+        pos = np.isfinite(sigma) & (sigma > 0)
+        if not pos.any():
+            sigma = None
+        else:
+            sigma = np.where(pos, sigma, np.median(sigma[pos]))
+
+        def neg_lorentz(x, x0, gamma, A, offset):
+            return offset - A * (gamma**2) / ((x - x0) ** 2 + gamma**2)
+
+        model = lmfit.Model(neg_lorentz)
+        params = model.make_params()
+
+        x0_0 = x[np.argmin(y)]
+        offset_0 = np.max(y)
+        A_0 = max(offset_0 - np.min(y), 1e-9)
+        gamma_0 = 0.1 * (x.max() - x.min()) if x.max() > x.min() else 1.0
+
+        params["x0"].set(value=x0_0)
+        params["gamma"].set(value=gamma_0, min=1e-12)
+        params["A"].set(value=A_0, min=0.0)
+        params["offset"].set(value=offset_0)
+
+        result = model.fit(
+            y, params, x=x, weights=1 / sigma if sigma is not None else None
+        )
+
+        popt = [result.params[name].value for name in ["x0", "gamma", "A", "offset"]]
+        perr = [
+            result.params[name].stderr
+            if result.params[name].stderr is not None
+            else 0.0
+            for name in ["x0", "gamma", "A", "offset"]
+        ]
+        x0, gamma, A, offset = popt
+
+        xs = np.linspace(x.min(), x.max(), 1000)
+        yf = neg_lorentz(xs, *popt)
+
+        residuals = result.residual
+        r_squared = result.rsquared
+        if show_residuals:
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+        else:
+            fig, ax1 = plt.subplots(figsize=(10, 6))
+
+        ax1.errorbar(x, y, yerr=std, fmt="o", capsize=3, label="mean ± std")
+        ax1.plot(xs, yf, "-", label="fit")
+        ax1.axvline(x0, color="orange", linestyle="--", label=f"x₀={x0:.3f}")
+
+        textstr = f"R²={r_squared:.3f}\nx₀={x0:.3f}±{perr[0]:.3f}\nγ={gamma:.3f}±{perr[1]:.3f}"
+        ax1.text(
+            0.02,
+            0.98,
+            textstr,
+            transform=ax1.transAxes,
+            verticalalignment="top",
+            bbox=dict(boxstyle="round", facecolor="wheat"),
+        )
+
+        ax1.set_ylabel("Probability")
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+
+        if show_residuals:
+            ax2.plot(x, residuals, "o")
+            ax2.axhline(0, color="red", linestyle="-")
+            ax2.set_xlabel(param)
+            ax2.set_ylabel("Residuals")
+            ax2.grid(True, alpha=0.3)
+        else:
+            ax1.set_xlabel(param)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path)
+
+        plt.show()
+
+        return popt
