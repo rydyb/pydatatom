@@ -2,7 +2,22 @@ import os
 import gzip
 import pickle
 import glob
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
+
+
+class TransformDataset(Dataset):
+    def __init__(self, dataset: Dataset, transform=None):
+        self.dataset = dataset
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index: int):
+        data = self.dataset[index]
+        if self.transform:
+            data = self.transform(data)
+        return data
 
 
 class GlobDataset(Dataset):

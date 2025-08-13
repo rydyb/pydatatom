@@ -1,7 +1,7 @@
 import numpy as np
 from .dataset import Dataset
 from .aggregator import MeanAggregator, SpotAggregator
-from .analysis.image.spot_detector import TopNNMSSpotDetector
+from .analysis.image.spot import TopNNMSSpotDetector
 
 from .analysis.models import (
     GaussianMixture,
@@ -146,6 +146,8 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
             self.spot_sums_binedges[:, :, 1:] - self.spot_sums_binedges[:, :, :-1]
         )
 
+        self.spots = self.spot_sums > self.spot_sums_thresholds
+
     def plot_spot_sums_histograms(self):
         from matplotlib import pyplot as plt
 
@@ -216,3 +218,10 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
 
         plt.tight_layout()
         plt.show()
+
+
+class FixedSpotProbabilityEvaluation(FixedSpotSumEvaluation):
+    def evaluate(self):
+        super().evaluate()
+
+        self.spots = self.spot_sums > self.spot_sums_thresholds
