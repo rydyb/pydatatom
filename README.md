@@ -37,3 +37,10 @@ plt.figure()
 plt.plot(df['aom_frequency'], df['atoms'])
 plt.show()
 ```
+
+## Development
+
+Repeat the steps to setup and activate a virtual environment and install the jupyterlab dependencies:
+```shell
+pip install -e . --group jupyterlab
+```

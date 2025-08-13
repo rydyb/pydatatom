@@ -1,14 +1,26 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=67", "wheel", "setuptools-git-versioning>=2.0,<3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyeval"
-version = "0.1.0"
+dynamic = ["version"]
 authors = [
     { name = "Bodo Kaiser", email = "bodo.kaiser@physik.uni-muenchen.de" },
 ]
-dependencies = ["numpy==2.1.3", "scipy==1.16.1"]
+dependencies = ["numpy==2.1.3", "scipy==1.16.1", "scikit-learn==1.7.1", "torch==2.8.0"]
+requires-python = ">= 3.9"
+
+[dependency-groups]
+matplotlib = ["matplotlib>=3.10.5"]
+jupyterlab = [
+    "jupyterlab>=4.4.5",
+    "ipympl>=0.9.7",
+    { include-group = "matplotlib" },
+]
 
 [tool.setuptools.packages.find]
 where = ["pyeval"]
+
+[tool.setuptools-git-versioning]
+enabled = true

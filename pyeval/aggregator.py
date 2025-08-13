@@ -1,12 +1,13 @@
 import numpy as np
 
-class Aggregator:
 
+class Aggregator:
     def update(self, value: np.ndarray):
         raise NotImplementedError
 
     def result(self):
         raise NotImplementedError
+
 
 class SumAggregator(Aggregator):
     def __init__(self, dtype=np.float64):
@@ -36,30 +37,26 @@ class MeanAggregator(SumAggregator):
         return self.value / self.count
 
 
-class HistAggregator(Aggregator):
-    def __init__(self, bins=10, dtype=np.float64):
-        self.bins = bins
-        self.dtype = dtype
-        self.value = np.zeros(bins, dtype=dtype)
-        self.count = 0
-
-    def update(self, value: np.ndarray):
-        self.value += np.histogram(value, bins=self.bins)[0]
-        self.count += len(value)
-
-    def result(self):
-        return self.value / self.count
-
-
-class SpotSumAggregator(Aggregator):
-    def __init__(self, spots: np.ndarray, spot_radius: int = 3, dtype=np.float64):
+class SpotAggregator(Aggregator):
+    def __init__(
+        self, spots: np.ndarray = None, spot_radius: int = 3, dtype=np.float64
+    ):
         self.dtype = dtype
         self.spots = spots
         self.spot_sums = []
         self.spot_radius = spot_radius
+        self.num_spots = len(self.spots) if self.spots is not None else 0
+
+    def set_spots(self, spots: np.ndarray):
+        self.spots = spots
         self.num_spots = len(self.spots)
 
     def update(self, images: np.ndarray):
+        if self.spots is None:
+            raise ValueError(
+                "Spots must be set before calling update. Use set_spots() method."
+            )
+
         m, h, w = images.shape
 
         item_spot_sums = np.zeros((m, self.num_spots))
