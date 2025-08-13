@@ -100,12 +100,13 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
         for m_idx in range(m):
             for l_idx in range(l):
                 counts, binedges = np.histogram(
-                    self.spot_sums[:, m_idx, l_idx], bins=self.spot_sums_bins
+                    self.spot_sums[:, m_idx, l_idx],
+                    bins=self.spot_sums_bins,
                 )
                 self.spot_sums_counts[m_idx, l_idx] = counts
                 self.spot_sums_binedges[m_idx, l_idx] = binedges
 
-        self.spot_sums_centers = (
+        self.spot_sums_bincenters = (
             self.spot_sums_binedges[:, :, :-1] + self.spot_sums_binedges[:, :, 1:]
         ) / 2
         self.spot_sums_binwidths = (
@@ -130,7 +131,7 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
             for m_idx in range(m):
                 ax = axes[l_idx][m_idx]
                 ax.bar(
-                    self.spot_sums_centers[m_idx, l_idx],
+                    self.spot_sums_bincenters[m_idx, l_idx],
                     self.spot_sums_counts[m_idx, l_idx],
                     width=self.spot_sums_binwidths[m_idx, l_idx],
                 )
