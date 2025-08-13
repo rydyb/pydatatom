@@ -8,3 +8,5 @@ from .evaluation import (
 from .transform import ExtractKey
 from .aggregator import Aggregator, MeanAggregator, SpotAggregator
 from .analysis.image.spot_detector import SpotDetector, TopNNMSSpotDetector
+from .analysis.histogram.threshold import MinGaussian2dOverlapThreshold
+from .analysis.models import Gaussian

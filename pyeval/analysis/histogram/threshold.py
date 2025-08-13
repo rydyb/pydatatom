@@ -1,43 +1,42 @@
-import numpy as np
-from lmfit import Model, Parameters
+from math import erf
+from lmfit import minimize, Parameters
+from ..models import Gaussian
 
 
-def gaussian_mixture(x, **params):
-    n = sum(1 for key in params.keys() if key.startswith("amp"))
+def gaussian2d_overlap(params, mean0, mean1, width0, width1):
+    threshold = params["threshold"].value
 
-    y = np.zeros_like(x)
-    for i in range(n):
-        amp = params[f"amp{i}"]
-        mean = params[f"mean{i}"]
-        width = params[f"width{i}"]
-        y += amp * np.exp(-((x - mean) ** 2) / width**2)
-
-    return y + params["offset"]
+    return erf((mean0 - threshold) / width0) + erf((threshold - mean1) / width1)
 
 
-class GaussianMixture:
-    def __init__(self, n: int):
-        self.n = n
-        self.model = Model(gaussian_mixture)
+class MinGaussian2dOverlapThreshold:
+    def __init__(self):
+        self.gaussian = Gaussian(2)
+
         self.params = Parameters()
         self.result = None
 
     def fit(self, x, y):
-        for i in range(self.n):
-            self.params.add(f"amp{i}", value=y.max(), min=y.min())
-            self.params.add(
-                f"mean{i}",
-                value=x.min() + (x.max() - x.min()) * i / (self.n - 1),
-                min=x.min(),
-                max=x.max(),
-            )
-            self.params.add(f"width{i}", value=x.std(), min=0.01)
+        self.gaussian.fit(x, y)
 
-        self.params.add("offset", value=y.min())
+        mean0 = self.gaussian.result.params["mean0"]
+        mean1 = self.gaussian.result.params["mean1"]
+        width0 = self.gaussian.result.params["width0"]
+        width1 = self.gaussian.result.params["width1"]
 
-        self.result = self.model.fit(y, self.params, x=x)
+        self.params.add(
+            "threshold", value=(mean0 + mean1) / 2, min=x.min(), max=x.max()
+        )
 
-    def predict(self, x):
+        self.result = minimize(
+            gaussian2d_overlap,
+            self.params,
+            args=(mean0, mean1, width0, width1),
+            method="nelder",
+        )
+
+    @property
+    def threshold(self):
         if self.result is None:
             raise ValueError("Model has not been fitted yet")
-        return self.result.eval(x=x)
+        return self.result.params["threshold"].value

@@ -2,6 +2,8 @@ import numpy as np
 from .dataset import Dataset
 from .aggregator import MeanAggregator, SpotAggregator
 from .analysis.image.spot_detector import TopNNMSSpotDetector
+from .analysis.histogram.threshold import MinGaussian2dOverlapThreshold
+from .analysis.models import gaussian
 
 
 class Evaluation:
@@ -86,9 +88,6 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
 
         super().__init__(*args, **kwargs)
 
-    def build(self):
-        super().build()
-
     def evaluate(self, dataset: Dataset):
         super().evaluate(dataset)
 
@@ -96,8 +95,14 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
 
         self.spot_sums_counts = np.zeros((m, l, self.spot_sums_bins), dtype=int)
         self.spot_sums_binedges = np.zeros((m, l, self.spot_sums_bins + 1))
+        self.spot_sums_bincenters = np.zeros((m, l, self.spot_sums_bins))
+        self.spot_sums_thresholds = np.zeros((m, l))
+
+        self.spot_sums_gaussian2d_params = []
 
         for m_idx in range(m):
+            gaussian2d_params = []
+
             for l_idx in range(l):
                 counts, binedges = np.histogram(
                     self.spot_sums[:, m_idx, l_idx],
@@ -106,9 +111,18 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
                 self.spot_sums_counts[m_idx, l_idx] = counts
                 self.spot_sums_binedges[m_idx, l_idx] = binedges
 
-        self.spot_sums_bincenters = (
-            self.spot_sums_binedges[:, :, :-1] + self.spot_sums_binedges[:, :, 1:]
-        ) / 2
+                bincenters = (binedges[:-1] + binedges[1:]) / 2
+
+                optimizer = MinGaussian2dOverlapThreshold()
+                optimizer.fit(bincenters, counts)
+
+                gaussian2d_params.append(optimizer.gaussian.result.params)
+
+                self.spot_sums_thresholds[m_idx, l_idx] = optimizer.threshold
+                self.spot_sums_bincenters[m_idx, l_idx] = bincenters
+
+            self.spot_sums_gaussian2d_params.append(gaussian2d_params)
+
         self.spot_sums_binwidths = (
             self.spot_sums_binedges[:, :, 1:] - self.spot_sums_binedges[:, :, :-1]
         )
@@ -129,11 +143,24 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
 
         for l_idx in range(l):
             for m_idx in range(m):
+                x = self.spot_sums_bincenters[m_idx, l_idx]
+                y = self.spot_sums_counts[m_idx, l_idx]
+
                 ax = axes[l_idx][m_idx]
-                ax.bar(
-                    self.spot_sums_bincenters[m_idx, l_idx],
-                    self.spot_sums_counts[m_idx, l_idx],
-                    width=self.spot_sums_binwidths[m_idx, l_idx],
+                ax.bar(x, y, width=self.spot_sums_binwidths[m_idx, l_idx])
+                ax.plot(
+                    x,
+                    gaussian(
+                        x,
+                        **self.spot_sums_gaussian2d_params[m_idx][l_idx],
+                    ),
+                    color="black",
+                )
+                ax.axvline(
+                    self.spot_sums_thresholds[m_idx, l_idx],
+                    y.min(),
+                    y.max(),
+                    color="black",
                 )
                 ax.set_title(f"Image {m_idx}, Spot {l_idx}")
                 ax.set_xlabel("Spot sum")
