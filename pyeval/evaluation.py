@@ -2,8 +2,12 @@ import numpy as np
 from .dataset import Dataset
 from .aggregator import MeanAggregator, SpotAggregator
 from .analysis.image.spot_detector import TopNNMSSpotDetector
-from .analysis.histogram.threshold import MinGaussian2dOverlapThreshold
-from .analysis.models import gaussian
+
+from .analysis.models import (
+    GaussianMixture,
+    DoubleGaussianMixtureOverlap,
+    gaussian_mixture,
+)
 
 
 class Evaluation:
@@ -113,12 +117,27 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
 
                 bincenters = (binedges[:-1] + binedges[1:]) / 2
 
-                optimizer = MinGaussian2dOverlapThreshold()
-                optimizer.fit(bincenters, counts)
+                gaussian_model = GaussianMixture(n=2)
+                gaussian_model.fit(bincenters, counts)
 
-                gaussian2d_params.append(optimizer.gaussian.result.params)
+                overlap_optimizer = DoubleGaussianMixtureOverlap()
+                overlap_optimizer.minimize(
+                    gaussian_model.amplitude, gaussian_model.mean, gaussian_model.width
+                )
 
-                self.spot_sums_thresholds[m_idx, l_idx] = optimizer.threshold
+                gaussian2d_params.append(
+                    {
+                        "amp0": gaussian_model.amplitude[0],
+                        "mean0": gaussian_model.mean[0],
+                        "width0": gaussian_model.width[0],
+                        "amp1": gaussian_model.amplitude[1],
+                        "mean1": gaussian_model.mean[1],
+                        "width1": gaussian_model.width[1],
+                        "offset": gaussian_model.offset[0],
+                    }
+                )
+
+                self.spot_sums_thresholds[m_idx, l_idx] = overlap_optimizer.threshold
                 self.spot_sums_bincenters[m_idx, l_idx] = bincenters
 
             self.spot_sums_gaussian2d_params.append(gaussian2d_params)
@@ -132,7 +151,7 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
 
         m, l, _ = self.spot_sums_counts.shape
 
-        fig, axes = plt.subplots(l, m, figsize=(m * 3, l * 3))
+        fig, axes = plt.subplots(l, m, figsize=(m * 3, l * 3), sharey=True)
 
         if l == 1 and m == 1:
             axes = [[axes]]
@@ -146,25 +165,54 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
                 x = self.spot_sums_bincenters[m_idx, l_idx]
                 y = self.spot_sums_counts[m_idx, l_idx]
 
+                p = self.spot_sums_gaussian2d_params[m_idx][l_idx]
+
                 ax = axes[l_idx][m_idx]
-                ax.bar(x, y, width=self.spot_sums_binwidths[m_idx, l_idx])
+                ax.bar(
+                    x,
+                    y,
+                    width=self.spot_sums_binwidths[m_idx, l_idx],
+                    color="skyblue",
+                    edgecolor="black",
+                )
                 ax.plot(
                     x,
-                    gaussian(
+                    gaussian_mixture(
                         x,
-                        **self.spot_sums_gaussian2d_params[m_idx][l_idx],
+                        **p,
                     ),
-                    color="black",
+                    color="darkblue",
+                    linestyle="--",
+                    linewidth=2,
                 )
                 ax.axvline(
                     self.spot_sums_thresholds[m_idx, l_idx],
                     y.min(),
                     y.max(),
-                    color="black",
+                    color="red",
+                    linewidth=2,
+                )
+                ax.axvline(
+                    p["mean0"],
+                    y.min(),
+                    y.max(),
+                    color="orange",
+                    linewidth=1.5,
+                    linestyle="dotted",
+                )
+                ax.axvline(
+                    p["mean1"],
+                    y.min(),
+                    y.max(),
+                    color="orange",
+                    linewidth=1.5,
+                    linestyle="dotted",
                 )
                 ax.set_title(f"Image {m_idx}, Spot {l_idx}")
-                ax.set_xlabel("Spot sum")
-                ax.set_ylabel("Count")
+                if l_idx == l - 1:
+                    ax.set_xlabel("Spot sum")
+                if m_idx == 0:
+                    ax.set_ylabel("Count")
 
         plt.tight_layout()
         plt.show()
