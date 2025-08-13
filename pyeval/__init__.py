@@ -5,7 +5,6 @@ from .evaluation import (
     FixedSpotDetectionEvaluation,
     FixedSpotHistogramEvaluation,
 )
-from .aggregator import Aggregator, MeanAggregator, SpotAggregator
 from .analysis.image.spot import SpotDetector, TopNNMSSpotDetector
 from .analysis.models import (
     GaussianMixture,

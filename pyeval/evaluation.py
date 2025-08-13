@@ -1,6 +1,6 @@
 import numpy as np
-from .dataset import Dataset
-from .aggregator import MeanAggregator, SpotAggregator
+from .dataset import Dataset, TransformDataset
+from .transform import MeanSpotCount
 from .analysis.image.spot import TopNNMSSpotDetector
 
 from .analysis.models import (
@@ -11,58 +11,65 @@ from .analysis.models import (
 
 
 class Evaluation:
-    def __init__(self):
-        self.build()
-
-    def build(self):
-        raise NotImplementedError
-
     def evaluate(self, dataset: Dataset):
         raise NotImplementedError
 
 
 class MeanImageEvaluation(Evaluation):
-    def build(self):
-        self.mean_images = None
-        self.mean_aggregator = MeanAggregator()
+    def __init__(self):
+        self.mean_image = None
 
     def evaluate(self, dataset: Dataset):
-        for item in dataset:
-            self.mean_aggregator.update(item["image"])
-        self.mean_images = self.mean_aggregator.result()
+        dataset = TransformDataset(dataset, lambda x: x["image"])
+
+        for image in dataset:
+            if self.mean_image is None:
+                self.mean_image = image.copy().astype(np.float64)
+            else:
+                self.mean_image += image
+        self.mean_image /= len(dataset)
+
+        return dataset
 
 
 class FixedSpotDetectionEvaluation(MeanImageEvaluation):
     def __init__(
         self,
-        spot_counts: int,
+        spot_num: int,
         spot_radius: int = 3,
     ):
-        self.spot_counts = spot_counts
+        super().__init__()
+
+        self.spot_num = spot_num
         self.spot_radius = spot_radius
-
-        self.build()
-
-    def build(self):
-        super().build()
-
-        self.spot_detector = TopNNMSSpotDetector(self.spot_counts)
+        self.spot_counts = None
 
     def evaluate(self, dataset: Dataset):
-        super().evaluate(dataset)
+        dataset = super().evaluate(dataset)
 
-        self.mean_image = self.mean_images.mean(axis=0)
-        self.spots = self.spot_detector.detect(self.mean_image)
+        self.spot_positions = TopNNMSSpotDetector(self.spot_num).detect(
+            self.mean_image.mean(axis=0)
+        )
+        mean_spot_count = MeanSpotCount(self.spot_positions)
+
+        dataset = TransformDataset(dataset, mean_spot_count)
+
+        spot_counts = []
+        for spot_count in dataset:
+            spot_counts.append(spot_count)
+        self.spot_counts = np.array(spot_counts)
+
+        return dataset
 
     def plot_detected_spots(self):
         from matplotlib import pyplot as plt
 
         plt.figure()
         plt.title("Detected spots on mean image")
-        plt.imshow(self.mean_image)
+        plt.imshow(self.mean_image.mean(axis=0))
         plt.scatter(
-            self.spots[:, 1],
-            self.spots[:, 0],
+            self.spot_positions[:, 1],
+            self.spot_positions[:, 0],
             s=60,
             facecolors="none",
             edgecolors="r",
@@ -71,49 +78,34 @@ class FixedSpotDetectionEvaluation(MeanImageEvaluation):
         plt.show()
 
 
-class FixedSpotSumEvaluation(FixedSpotDetectionEvaluation):
-    def build(self):
-        super().build()
-
-        self.spot_aggregator = SpotAggregator()
-
-    def evaluate(self, dataset: Dataset):
-        super().evaluate(dataset)
-
-        self.spot_aggregator.set_spots(self.spots)
-        for item in dataset:
-            self.spot_aggregator.update(item["image"])
-        self.spot_sums = self.spot_aggregator.result()
-
-
-class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
-    def __init__(self, spot_sums_bins: int, *args, **kwargs):
-        self.spot_sums_bins = spot_sums_bins
-
+class FixedSpotHistogramEvaluation(FixedSpotDetectionEvaluation):
+    def __init__(self, spot_counts_bins: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.spot_counts_bins = spot_counts_bins
+
     def evaluate(self, dataset: Dataset):
-        super().evaluate(dataset)
+        dataset = super().evaluate(dataset)
 
-        n, m, l = self.spot_sums.shape
+        n, m, l = self.spot_counts.shape
 
-        self.spot_sums_counts = np.zeros((m, l, self.spot_sums_bins), dtype=int)
-        self.spot_sums_binedges = np.zeros((m, l, self.spot_sums_bins + 1))
-        self.spot_sums_bincenters = np.zeros((m, l, self.spot_sums_bins))
-        self.spot_sums_thresholds = np.zeros((m, l))
+        self.spot_counts_histogram = np.zeros((m, l, self.spot_counts_bins), dtype=int)
+        self.spot_counts_binedges = np.zeros((m, l, self.spot_counts_bins + 1))
+        self.spot_counts_bincenters = np.zeros((m, l, self.spot_counts_bins))
+        self.spot_counts_thresholds = np.zeros((m, l))
 
-        self.spot_sums_gaussian2d_params = []
+        self.spot_counts_gaussian2d_params = []
 
         for m_idx in range(m):
             gaussian2d_params = []
 
             for l_idx in range(l):
                 counts, binedges = np.histogram(
-                    self.spot_sums[:, m_idx, l_idx],
-                    bins=self.spot_sums_bins,
+                    self.spot_counts[:, m_idx, l_idx],
+                    bins=self.spot_counts_bins,
                 )
-                self.spot_sums_counts[m_idx, l_idx] = counts
-                self.spot_sums_binedges[m_idx, l_idx] = binedges
+                self.spot_counts_histogram[m_idx, l_idx] = counts
+                self.spot_counts_binedges[m_idx, l_idx] = binedges
 
                 bincenters = (binedges[:-1] + binedges[1:]) / 2
 
@@ -137,21 +129,25 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
                     }
                 )
 
-                self.spot_sums_thresholds[m_idx, l_idx] = overlap_optimizer.threshold
-                self.spot_sums_bincenters[m_idx, l_idx] = bincenters
+                self.spot_counts_thresholds[m_idx, l_idx] = overlap_optimizer.threshold
+                self.spot_counts_bincenters[m_idx, l_idx] = bincenters
 
-            self.spot_sums_gaussian2d_params.append(gaussian2d_params)
+            self.spot_counts_gaussian2d_params.append(gaussian2d_params)
 
-        self.spot_sums_binwidths = (
-            self.spot_sums_binedges[:, :, 1:] - self.spot_sums_binedges[:, :, :-1]
+        self.spot_counts_binwidths = (
+            self.spot_counts_binedges[:, :, 1:] - self.spot_counts_binedges[:, :, :-1]
         )
 
-        self.spots = self.spot_sums > self.spot_sums_thresholds
+        self.spot_counts_bincenters = (
+            self.spot_counts_binedges[:, :, 1:] + self.spot_counts_binedges[:, :, :-1]
+        ) / 2
+
+        self.spots = self.spot_counts > self.spot_counts_thresholds
 
     def plot_spot_sums_histograms(self):
         from matplotlib import pyplot as plt
 
-        m, l, _ = self.spot_sums_counts.shape
+        m, l, _ = self.spot_counts_histogram.shape
 
         fig, axes = plt.subplots(l, m, figsize=(m * 3, l * 3), sharey=True)
 
@@ -164,16 +160,16 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
 
         for l_idx in range(l):
             for m_idx in range(m):
-                x = self.spot_sums_bincenters[m_idx, l_idx]
-                y = self.spot_sums_counts[m_idx, l_idx]
+                x = self.spot_counts_bincenters[m_idx, l_idx]
+                y = self.spot_counts_histogram[m_idx, l_idx]
 
-                p = self.spot_sums_gaussian2d_params[m_idx][l_idx]
+                p = self.spot_counts_gaussian2d_params[m_idx][l_idx]
 
                 ax = axes[l_idx][m_idx]
                 ax.bar(
                     x,
                     y,
-                    width=self.spot_sums_binwidths[m_idx, l_idx],
+                    width=self.spot_counts_binwidths[m_idx, l_idx],
                     color="skyblue",
                     edgecolor="black",
                 )
@@ -188,7 +184,7 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
                     linewidth=2,
                 )
                 ax.axvline(
-                    self.spot_sums_thresholds[m_idx, l_idx],
+                    self.spot_counts_thresholds[m_idx, l_idx],
                     y.min(),
                     y.max(),
                     color="red",
@@ -218,10 +214,3 @@ class FixedSpotHistogramEvaluation(FixedSpotSumEvaluation):
 
         plt.tight_layout()
         plt.show()
-
-
-class FixedSpotProbabilityEvaluation(FixedSpotSumEvaluation):
-    def evaluate(self):
-        super().evaluate()
-
-        self.spots = self.spot_sums > self.spot_sums_thresholds
