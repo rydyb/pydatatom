@@ -16,31 +16,16 @@ source .venv/bin/activate
 
 Install the dependencies (if not done already):
 ```shell
-pip install .
+pip install git+https://github.com/rydyb/pyeval.git@0.0.1
 ```
 
 ## Usage
 
-Inside the python shell or a notebook:
-```python
-from pyeval import GzipPickleDataset, LossCorrectedEvaluator
-
-
-dataset = GzipPickleDataset('path/to/dataset')
-
-evaluator = LossCorrectedEvaluator(num_spots=16)
-evaluator.evaluate(dataset)
-
-df = evaluator.to_df()
-
-plt.figure()
-plt.plot(df['aom_frequency'], df['atoms'])
-plt.show()
-```
+See the notebooks directory for usage examples.
 
 ## Development
 
 Repeat the steps to setup and activate a virtual environment and install the jupyterlab dependencies:
 ```shell
-pip install -e . --group jupyterlab
+pip install -e . --group jupyterlab git+https://github.com/rydyb/pyeval.git@0.0.1
 ```
