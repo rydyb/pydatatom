@@ -6,9 +6,3 @@ from .evaluation import (
     FixedSpotHistogramEvaluation,
     FixedSpotSpectroscopyEvaluation,
 )
-from .analysis.image.spot import SpotDetector, TopNNMSSpotDetector
-from .analysis.models import (
-    GaussianMixture,
-    gaussian_mixture,
-    DoubleGaussianMixtureOverlap,
-)

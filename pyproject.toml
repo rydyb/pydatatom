@@ -8,7 +8,13 @@ dynamic = ["version"]
 authors = [
     { name = "Bodo Kaiser", email = "bodo.kaiser@physik.uni-muenchen.de" },
 ]
-dependencies = ["numpy==2.1.3", "scipy==1.16.1", "lmfit==1.3.4", "torch==2.8.0", "pandas==2.3.1"]
+dependencies = [
+    "numpy==2.1.3",
+    "scipy==1.16.1",
+    "lmfit==1.3.4",
+    "torch==2.8.0",
+    "pandas==2.3.1",
+]
 requires-python = ">= 3.9"
 
 [dependency-groups]
@@ -20,7 +26,7 @@ jupyterlab = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["pyeval"]
+where = ["."]
 
 [tool.setuptools-git-versioning]
 enabled = true

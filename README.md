@@ -25,7 +25,12 @@ See the notebooks directory for usage examples.
 
 ## Development
 
-Repeat the steps to setup and activate a virtual environment and install the jupyterlab dependencies:
+Clone the repository:
 ```shell
-pip install -e . --group jupyterlab git+https://github.com/rydyb/pyeval.git@0.0.1
+git clone https://github.com/rydyb/pyeval.git
+```
+
+Repeat the steps to setup and activate a virtual environment and install the jupyterlab dependencies referring to the local repository:
+```shell
+pip install -e . --group jupyterlab
 ```
