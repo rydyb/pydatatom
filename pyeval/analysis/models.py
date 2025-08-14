@@ -16,6 +16,55 @@ def gaussian_mixture(x, **params):
     return y + params["offset"]
 
 
+def shortest_mass_interval(x, y, mass=0.95):
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    assert x.ndim == y.ndim == 1 and x.size == y.size, (
+        "x and y must be 1D and same length"
+    )
+
+    # keep only nonnegative weights
+    m = y >= 0
+    x, y = x[m], y[m]
+    if x.size == 0 or y.sum() == 0:
+        return (np.nan, np.nan), (None, None), m  # nothing to do
+    # sort by x
+    order = np.argsort(x)
+    x, y = x[order], y[order]
+
+    target = mass * y.sum()
+
+    # two-pointer sliding window to find minimal-width window with weight >= target
+    i = j = 0
+    w = 0.0
+    best = (np.inf, 0, 0)  # (width, i_best, j_best)
+
+    while i < len(x):
+        while j < len(x) and w < target:
+            w += y[j]
+            j += 1  # window is [i, j-1]
+        if w >= target:
+            width = x[j - 1] - x[i]
+            if width < best[0]:
+                best = (width, i, j - 1)
+        w -= y[i]
+        i += 1
+
+    _, i_best, j_best = best
+    x_left, x_right = x[i_best], x[j_best]
+
+    # Build a mask for the original input (optional, handy for slicing)
+    # Start by mapping back to original indices
+    inv_order = np.empty_like(order)
+    inv_order[order] = np.arange(order.size)
+    inside_sorted = (np.arange(x.size) >= i_best) & (np.arange(x.size) <= j_best)
+
+    mask_original = np.zeros(m.size, dtype=bool)
+    mask_original[m] = inside_sorted[inv_order[m]]
+    return x_right - x_left
+
+
 class GaussianMixture:
     def __init__(self, n: int):
         self.n = n
@@ -25,12 +74,14 @@ class GaussianMixture:
     def fit(self, x, y):
         params = Parameters()
 
-        xrange = x.max() - x.min()
+        # xrange = x.max() - x.min()
+        xrange = shortest_mass_interval(x, y, mass=0.95)
         xwidth = xrange / self.n
 
         for i in range(self.n):
             xstart = x.min() + xwidth * i
             xend = x.min() + xwidth * (i + 1)
+            xbuf = xwidth * 0.1
 
             params.add(
                 f"amp{i}", value=y.mean(), min=np.percentile(y, 0.1), max=y.max()
@@ -38,10 +89,10 @@ class GaussianMixture:
             params.add(
                 f"mean{i}",
                 value=xstart + xwidth / 2,
-                min=xstart,
-                max=xend,
+                min=xstart + xbuf,
+                max=xend - xbuf,
             )
-            params.add(f"width{i}", value=x.std(), min=x.std() / 10, max=xrange / 2)
+            params.add(f"width{i}", value=x.std(), min=x.std() / 10, max=x.var())
 
         params.add("offset", value=y.min(), vary=False)
 
