@@ -16,7 +16,7 @@ source .venv/bin/activate
 
 Install the dependencies (if not done already):
 ```shell
-pip install git+https://github.com/rydyb/pyeval.git@0.0.1
+pip install git+https://github.com/rydyb/pyeval.git
 ```
 
 ## Usage
