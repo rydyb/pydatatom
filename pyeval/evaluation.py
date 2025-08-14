@@ -13,7 +13,7 @@ from .analysis.models import (
 
 
 class Evaluation:
-    def evaluate(self, dataset: Dataset):
+    def evaluate(self, dataset: Dataset, plot=True):
         raise NotImplementedError
 
 
@@ -21,7 +21,7 @@ class MeanImageEvaluation(Evaluation):
     def __init__(self):
         self.mean_image = None
 
-    def evaluate(self, dataset: Dataset):
+    def evaluate(self, dataset: Dataset, plot=True):
         dataset = TransformDataset(dataset, lambda x: x["image"])
 
         for image in dataset:
@@ -46,8 +46,8 @@ class FixedSpotDetectionEvaluation(MeanImageEvaluation):
         self.spot_radius = spot_radius
         self.spot_counts = None
 
-    def evaluate(self, dataset: Dataset):
-        dataset = super().evaluate(dataset)
+    def evaluate(self, dataset: Dataset, plot=True):
+        dataset = super().evaluate(dataset, plot=plot)
 
         self.spot_positions = TopNNMSSpotDetector(self.spot_num).detect(
             self.mean_image.mean(axis=0)
@@ -60,6 +60,9 @@ class FixedSpotDetectionEvaluation(MeanImageEvaluation):
         for spot_count in dataset:
             spot_counts.append(spot_count)
         self.spot_counts = np.array(spot_counts)
+
+        if plot:
+            self.plot_detected_spots()
 
         return dataset
 
@@ -86,8 +89,8 @@ class FixedSpotHistogramEvaluation(FixedSpotDetectionEvaluation):
 
         self.spot_counts_bins = spot_counts_bins
 
-    def evaluate(self, dataset: Dataset):
-        dataset = super().evaluate(dataset)
+    def evaluate(self, dataset: Dataset, plot=True):
+        dataset = super().evaluate(dataset, plot=plot)
 
         n, m, l = self.spot_counts.shape
 
@@ -141,6 +144,9 @@ class FixedSpotHistogramEvaluation(FixedSpotDetectionEvaluation):
         )
 
         self.spots = self.spot_counts > self.spot_counts_thresholds
+
+        if plot:
+            self.plot_spot_sums_histograms()
 
     def plot_spot_sums_histograms(self):
         from matplotlib import pyplot as plt
@@ -215,12 +221,13 @@ class FixedSpotHistogramEvaluation(FixedSpotDetectionEvaluation):
 
 
 class FixedSpotSpectroscopyEvaluation(FixedSpotHistogramEvaluation):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, drop_const=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.drop_const = drop_const
         self.df = None
 
-    def evaluate(self, dataset):
+    def evaluate(self, dataset, plot=False, drop_const=True):
         df = pd.DataFrame(
             list(
                 TransformDataset(
@@ -233,9 +240,10 @@ class FixedSpotSpectroscopyEvaluation(FixedSpotHistogramEvaluation):
                 )
             )
         )
-        df = df.loc[:, df.nunique(dropna=False).ne(1)]  # drop constant parameters
+        if self.drop_const:
+            df = df.loc[:, df.nunique(dropna=False).ne(1)]  # drop constant parameters
 
-        super().evaluate(dataset)
+        super().evaluate(dataset, plot=plot)
 
         spots = self.spots.copy()
         spots[:, 0, :] |= spots[:, 1, :]
