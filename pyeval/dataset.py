@@ -32,6 +32,7 @@ class GlobDataset(Dataset):
     def __getitem__(self, index: int):
         path = self.files[index]
         if self.transform:
+            # Here you are applying transform on a path in GzipPickleDataset on data
             path = self.transform(path)
         return path
 
@@ -47,5 +48,6 @@ class GzipPickleDataset(GlobDataset):
         with gzip.open(path, "rb") as file:
             data = pickle.load(file)
         if self.transform:
+            # Here you apply transform on data, in GlobDataset on a path.
             data = self.transform(data)
         return data

@@ -32,13 +32,17 @@ class TopNNMSSpotDetector(SpotDetector):
 
     def _apply_dog_filter(self, image):
         return gaussian_filter(image, self.spot_size) - gaussian_filter(
-            image, self.spot_size * 3
+            image,
+            self.spot_size * 3,  # Why * 3? Assign variable name to magic number
         )
 
     def _calculate_threshold(self, band):
         med = np.median(band)
         mad = np.median(np.abs(band - med)) + 1e-12
-        return med + self.k_threshold * 1.4826 * mad
+        return (
+            # Magic number, assing to named variable.
+            med + self.k_threshold * 1.4826 * mad
+        )
 
     def _apply_threshold(self, band, threshold):
         score = band.copy()
@@ -84,9 +88,11 @@ class TopNNMSSpotDetector(SpotDetector):
                 (float((pr * patch).sum() / s), float((pc * patch).sum() / s))
             )
 
-        return centroids
+        return centroids  # This is a list of tuples, but _sort_centroids is a np.array. Is that wanted?
 
     def _sort_centroids(self, centroids):
         centroids = np.array(centroids)
         order = np.lexsort((centroids[:, 1], centroids[:, 0]))
-        return centroids[order]
+        return centroids[
+            order
+        ]  # This is array of tuples but _refine_centroids returns list

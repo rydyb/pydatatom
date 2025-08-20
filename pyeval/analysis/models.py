@@ -16,6 +16,7 @@ def gaussian_mixture(x, **params):
     return y + params["offset"]
 
 
+# Here, but in the codebase in general, I would appreciate type hints. What do you expect x,y to be?
 def shortest_mass_interval(x, y, mass=0.95):
     x = np.asarray(x)
     y = np.asarray(y)
@@ -23,12 +24,15 @@ def shortest_mass_interval(x, y, mass=0.95):
     assert x.ndim == y.ndim == 1 and x.size == y.size, (
         "x and y must be 1D and same length"
     )
+    assert 0 < mass <= 1, f"mass must be in (0, 1], got {mass}"
 
     # keep only nonnegative weights
-    m = y >= 0
-    x, y = x[m], y[m]
+    nonnegative_mask = y >= 0
+    x, y = x[nonnegative_mask], y[nonnegative_mask]
+
     if x.size == 0 or y.sum() == 0:
-        return (np.nan, np.nan), (None, None), m  # nothing to do
+        return (np.nan, np.nan), (None, None), nonnegative_mask  # nothing to do
+
     # sort by x
     order = np.argsort(x)
     x, y = x[order], y[order]
@@ -36,32 +40,32 @@ def shortest_mass_interval(x, y, mass=0.95):
     target = mass * y.sum()
 
     # two-pointer sliding window to find minimal-width window with weight >= target
-    i = j = 0
+    left = right = 0
     w = 0.0
     best = (np.inf, 0, 0)  # (width, i_best, j_best)
 
-    while i < len(x):
-        while j < len(x) and w < target:
-            w += y[j]
-            j += 1  # window is [i, j-1]
+    while left < len(x):
+        while right < len(x) and w < target:
+            w += y[right]
+            right += 1  # window is [left, right-1]
         if w >= target:
-            width = x[j - 1] - x[i]
+            width = x[right - 1] - x[left]
             if width < best[0]:
-                best = (width, i, j - 1)
-        w -= y[i]
-        i += 1
+                best = (width, left, right - 1)
+        w -= y[left]
+        left += 1
 
-    _, i_best, j_best = best
-    x_left, x_right = x[i_best], x[j_best]
+    _, left_best, right_best = best
+    x_left, x_right = x[left_best], x[right_best]
 
     # Build a mask for the original input (optional, handy for slicing)
     # Start by mapping back to original indices
     inv_order = np.empty_like(order)
     inv_order[order] = np.arange(order.size)
-    inside_sorted = (np.arange(x.size) >= i_best) & (np.arange(x.size) <= j_best)
+    inside_sorted = (np.arange(x.size) >= left_best) & (np.arange(x.size) <= right_best)
 
-    mask_original = np.zeros(m.size, dtype=bool)
-    mask_original[m] = inside_sorted[inv_order[m]]
+    mask_original = np.zeros(nonnegative_mask.size, dtype=bool)
+    mask_original[nonnegative_mask] = inside_sorted[inv_order[nonnegative_mask]]
     return x_right - x_left
 
 
@@ -124,6 +128,7 @@ def double_gaussian_mixture_overlap_infidelity(params, amp, mean, width):
     threshold = params["threshold"].value
     weight = amp * width
 
+    # Would add a comment and or more descriptive variable names. I want to be able to check that this is correct. (Where?)
     return weight[0] * (erf((mean[0] - threshold) / width[0]) + 1.0) + weight[1] * (
         erf((threshold - mean[1]) / width[1]) + 1.0
     )

@@ -6,3 +6,14 @@ from .evaluation import (
     FixedSpotHistogramEvaluation,
     FixedSpotSpectroscopyEvaluation,
 )
+
+
+# To make all avaliable as root import (if you want)
+__all__ = [
+    "Dataset",
+    "TransformDataset",
+    "GlobDataset",
+    "GzipPickleDataset",
+    "Evaluation",
+    "MeanImageEvaluation",  # etc...
+]

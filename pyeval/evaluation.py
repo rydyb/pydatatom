@@ -19,17 +19,23 @@ class Evaluation:
 
 class MeanImageEvaluation(Evaluation):
     def __init__(self):
-        self.mean_image = None
+        self._mean_image = None
+
+    @property
+    def mean_image(self):
+        if self._mean_image is None:
+            raise ValueError("Mean not yet calculated")
+        return self._mean_image
 
     def evaluate(self, dataset: Dataset, plot=True):
         dataset = TransformDataset(dataset, lambda x: x["image"])
 
         for image in dataset:
-            if self.mean_image is None:
-                self.mean_image = image.copy().astype(np.float64)
+            if self._mean_image is None:
+                self._mean_image = image.copy().astype(np.float64)
             else:
-                self.mean_image += image
-        self.mean_image /= len(dataset)
+                self._mean_image += image
+        self._mean_image /= len(dataset)
 
         return dataset
 
@@ -92,7 +98,7 @@ class FixedSpotHistogramEvaluation(FixedSpotDetectionEvaluation):
     def evaluate(self, dataset: Dataset, plot=True):
         dataset = super().evaluate(dataset, plot=plot)
 
-        n, m, l = self.spot_counts.shape
+        n, m, l = self.spot_counts.shape  # What are n, m, l => More descriptive names?
 
         self.spot_counts_histogram = np.zeros((m, l, self.spot_counts_bins), dtype=int)
         self.spot_counts_binedges = np.zeros((m, l, self.spot_counts_bins + 1))
@@ -151,7 +157,9 @@ class FixedSpotHistogramEvaluation(FixedSpotDetectionEvaluation):
     def plot_spot_sums_histograms(self):
         from matplotlib import pyplot as plt
 
-        m, l, _ = self.spot_counts_histogram.shape
+        m, l, _ = (
+            self.spot_counts_histogram.shape
+        )  # what is m, l; also above it's n, m, l and not m, l, _; what is correct? or if it is different, the naming should not be so close.
 
         fig, axes = plt.subplots(l, m, figsize=(m * 3, l * 3), sharey=True)
 
@@ -245,7 +253,7 @@ class FixedSpotSpectroscopyEvaluation(FixedSpotHistogramEvaluation):
         super().evaluate(dataset, plot=plot)
 
         spots = self.spots.copy()
-        spots[:, 0, :] |= spots[:, 1, :]
+        spots[:, 0, :] |= spots[:, 1, :]  # What does this do? And why?
 
         df["probability"] = spots[:, 1].sum(axis=-1) / spots[:, 0].sum(axis=-1)
 
@@ -255,7 +263,7 @@ class FixedSpotSpectroscopyEvaluation(FixedSpotHistogramEvaluation):
         self,
         param: str,
         show_residuals: bool = True,
-        save_path: str = None,
+        save_path: str = None,  # None is not str, type as None | str.
         fit: bool = True,
     ):
         from matplotlib import pyplot as plt
