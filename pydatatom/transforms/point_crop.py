@@ -13,10 +13,11 @@ class PointCrop:
 
         patches = []
         for y0, x0 in self.points:
-            y1, y2 = y0 - self.h // 2, y0 + self.h // 2
-            x1, x2 = x0 - self.w // 2, x0 + self.w // 2
-            patches.append(image[:, y1:y2, x1:x2])
+            y1, y2 = y0 - self.size // 2, y0 + self.size // 2 + 1
+            x1, x2 = x0 - self.size // 2, x0 + self.size // 2 + 1
+            patch = image[:, y1:y2, x1:x2]
+            patches.append(patch)
         if not patches:
             raise ValueError("no patches cropped")
 
-        return np.stack(patches, axis=0)
+        return np.stack(patches, axis=1)

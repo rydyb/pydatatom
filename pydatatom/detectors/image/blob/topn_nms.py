@@ -1,28 +1,24 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter
+from .detector import BlobDetector
 
 
-class SpotDetector:
-    def detect(self, image):
-        raise NotImplementedError
-
-
-class TopNNMSSpotDetector(SpotDetector):
+class TopNNMSBlobDetector(BlobDetector):
     def __init__(
         self,
-        spot_count,
-        spot_size=1.2,
-        spot_distance=12,
+        blob_num,
+        blob_size=1.2,
+        blob_distance=12,
         window_size=6,
         k_threshold=3.0,
     ):
-        self.spot_count = spot_count
-        self.spot_size = spot_size
-        self.spot_distance = spot_distance
+        self.blob_num = blob_num
+        self.blob_size = blob_size
+        self.blob_distance = blob_distance
         self.window_size = window_size
         self.k_threshold = k_threshold
 
-    def detect(self, image):
+    def fit(self, image: np.array) -> np.array:
         band = self._apply_dog_filter(image)
         threshold = self._calculate_threshold(band)
         score = self._apply_threshold(band, threshold)
@@ -31,8 +27,8 @@ class TopNNMSSpotDetector(SpotDetector):
         return self._sort_centroids(centroids)
 
     def _apply_dog_filter(self, image):
-        return gaussian_filter(image, self.spot_size) - gaussian_filter(
-            image, self.spot_size * 3
+        return gaussian_filter(image, self.blob_size) - gaussian_filter(
+            image, self.blob_size * 3
         )
 
     def _calculate_threshold(self, band):
@@ -50,16 +46,16 @@ class TopNNMSSpotDetector(SpotDetector):
         rr, cc = np.ogrid[:H, :W]
         peaks = []
 
-        for _ in range(self.spot_count):
+        for _ in range(self.blob_num):
             idx = np.argmax(score)
             val = score.flat[idx]
             if not np.isfinite(val):
                 raise ValueError(
-                    f"only found {len(peaks)} peaks above threshold (need {self.spot_count})."
+                    f"only found {len(peaks)} peaks above threshold (need {self.blob_num})."
                 )
             r, c = divmod(idx, W)
             peaks.append((r, c))
-            mask = (rr - r) ** 2 + (cc - c) ** 2 <= (self.spot_distance**2)
+            mask = (rr - r) ** 2 + (cc - c) ** 2 <= (self.blob_distance**2)
             score[mask] = -np.inf
 
         return peaks

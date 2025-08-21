@@ -1,6 +1,7 @@
 import numpy as np
 from math import erf
 from lmfit import minimize, Model, Parameters
+from .detector import ThresholdDetector
 
 
 def gaussian_mixture(x, **params):
@@ -65,7 +66,7 @@ def shortest_mass_interval(x, y, mass=0.95):
     return x_right - x_left
 
 
-class GaussianMixture:
+class GaussianThresholdDetector(ThresholdDetector):
     def __init__(self, n: int):
         self.n = n
         self.model = Model(gaussian_mixture)

@@ -1,8 +1,7 @@
 import numpy as np
 from dataclasses import dataclass
-from pydatatom.datasets import Dataset, Transform
-from pydatatom.transforms import PickKey
-from .step import Step
+from pydatatom.datasets import Dataset
+from ..step import Step
 
 
 @dataclass
@@ -13,18 +12,18 @@ class MeanImageState:
 
 class MeanImageStep(Step):
     def fit(self, context: MeanImageState, dataset: Dataset):
-        mean = None
+        sum = None
         count = 0
 
         for image in dataset:
-            if mean is None:
-                mean = image.copy().astype(np.float64)
+            if sum is None:
+                sum = image.copy().astype(np.float64)
             else:
-                mean += image
+                sum += image
                 count += 1
 
-        context.mean_image = mean / count
-        context.mean_count = count
+        context["mean_image"] = sum / count
+        context["mean_count"] = count
 
     def transform(self, context: MeanImageState, dataset: Dataset):
         return dataset
@@ -32,7 +31,12 @@ class MeanImageStep(Step):
     def plot(self, context: MeanImageState):
         from matplotlib import pyplot as plt
 
-        plt.figure()
-        plt.imshow(context.mean_image)
-        plt.title(f"MeanImage of {context.mean_count} images")
+        image = context["mean_image"]
+        count = context["mean_count"]
+        n = image.shape[0]
+
+        fig, axis = plt.subplots(n, 1)
+        for i in range(n):
+            axis[i].imshow(image[i])
+            axis[i].set_title(f"Mean of {count} images ({i + 1} of {n})")
         plt.show()
