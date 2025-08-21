@@ -1,7 +1,7 @@
 import numpy as np
 from dataclasses import dataclass
 from pydatatom.datasets import Dataset, Transform
-
+from pydatatom.detectors import GaussianCurveDetector, GaussianThresholdDetector
 
 from ..step import Step
 from .atom_crop import AtomCropState
@@ -11,6 +11,19 @@ from .atom_crop import AtomCropState
 class AtomCountState(AtomCropState):
     bins: np.ndarray | None = None
     counts: np.ndarray | None = None
+
+
+def gaussian_mixture(x, **params):
+    n = sum(1 for key in params.keys() if key.startswith("amp"))
+
+    y = np.zeros_like(x)
+    for i in range(n):
+        amp = params[f"amp{i}"]
+        mean = params[f"mean{i}"]
+        width = params[f"width{i}"]
+        y += amp * np.exp(-(((x - mean) / width) ** 2))
+
+    return y + params["offset"]
 
 
 class AtomCountStep(Step):
@@ -23,19 +36,47 @@ class AtomCountStep(Step):
         nimages = image_mean.shape[0]
         nbins = self.num_bins
 
-        _, bins = np.histogram(image_mean, bins=nbins)
+        _, binedges = np.histogram(image_mean, bins=nbins)
         counts = np.zeros((nimages, natoms, nbins), dtype=int)
 
         i, j = np.indices((nimages, natoms))
 
         for patch in dataset:
             mean = patch.mean(axis=(2, 3))
-            idx = np.searchsorted(bins, mean, side="right") - 1
+            idx = np.searchsorted(binedges, mean, side="right") - 1
             idx = np.clip(idx, 0, nbins - 1)
             np.add.at(counts, (i, j, idx), 1)
 
-        context["atom_bins"] = bins
+        bincenters = (binedges[:-1] + binedges[1:]) / 2
+
+        fits = []
+        for i in range(counts.shape[0]):
+            fit = []
+            for j in range(counts.shape[1]):
+                curve = GaussianCurveDetector(n=2)
+                curve.fit(bincenters, counts[i, j])
+
+                threshold = GaussianThresholdDetector()
+                threshold.fit(curve.amplitude, curve.mean, curve.width)
+
+                fit.append(
+                    {
+                        "amp0": curve.amplitude[0],
+                        "mean0": curve.mean[0],
+                        "width0": curve.width[0],
+                        "amp1": curve.amplitude[1],
+                        "mean1": curve.mean[1],
+                        "width1": curve.width[1],
+                        "offset": curve.offset[0],
+                        "threshold": threshold.threshold,
+                    }
+                )
+            fits.append(fit)
+
+        context["atom_binedges"] = binedges
+        context["atom_bincenters"] = bincenters
         context["atom_counts"] = counts
+        context["atom_fits"] = fits
 
     def transform(self, context: AtomCropState, dataset: Dataset):
         return dataset
@@ -48,7 +89,7 @@ class AtomCountStep(Step):
 
         nimages = context["atom_counts"].shape[0]
         natoms = context["atom_counts"].shape[1]
-        bins = context["atom_bins"]
+        bincenters = context["atom_bincenters"]
         counts = context["atom_counts"]
 
         fig, axes = plt.subplots(
@@ -64,13 +105,47 @@ class AtomCountStep(Step):
 
         for i in range(nimages):
             for j in range(natoms):
-                ax = axes[j][i]
+                fit = context["atom_fits"][i][j]
 
+                x = bincenters
+                y = gaussian_mixture(bincenters, **fit)
+
+                ax = axes[j][i]
                 ax.bar(
-                    bins[:-1],
+                    x,
                     counts[i, j],
                     color="skyblue",
                     edgecolor="black",
+                )
+                ax.plot(
+                    x,
+                    y,
+                    color="darkblue",
+                    linestyle="--",
+                    linewidth=2,
+                )
+                ax.axvline(
+                    fit["threshold"],
+                    y.min(),
+                    y.max(),
+                    color="red",
+                    linewidth=2,
+                )
+                ax.axvline(
+                    fit["mean0"],
+                    y.min(),
+                    y.max(),
+                    color="orange",
+                    linewidth=1.5,
+                    linestyle="dotted",
+                )
+                ax.axvline(
+                    fit["mean1"],
+                    y.min(),
+                    y.max(),
+                    color="orange",
+                    linewidth=1.5,
+                    linestyle="dotted",
                 )
 
                 ax.set_title(f"Image {i}, Spot {j}")

@@ -1,4 +1,5 @@
 from .image.blob import BlobDetector, TopNNMSBlobDetector
+from .curve import CurveDetector, GaussianCurveDetector
 from .histogram.threshold import ThresholdDetector, GaussianThresholdDetector
 
 __all__ = [
@@ -6,4 +7,6 @@ __all__ = [
     "TopNNMSBlobDetector",
     "ThresholdDetector",
     "GaussianThresholdDetector",
+    "CurveDetector",
+    "GaussianCurveDetector",
 ]
