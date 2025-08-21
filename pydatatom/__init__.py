@@ -4,7 +4,7 @@ from .pipelines import (
     Pipeline,
     Step,
     TransformStep,
-    MeanImageStep,
+    ImageMeanStep,
     AtomCropStep,
     AtomCountStep,
 )
@@ -25,7 +25,7 @@ __all__ = [
     "Pipeline",
     "Step",
     "TransformStep",
-    "MeanImageStep",
+    "ImageMeanStep",
     "AtomCropStep",
     "AtomCountStep",
     "BlobDetector",

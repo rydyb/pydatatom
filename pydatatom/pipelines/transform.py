@@ -11,3 +11,6 @@ class TransformStep(Step):
 
     def transform(self, context: dict, dataset):
         return Transform(dataset, self._transform)
+
+    def plot(self, context: dict):
+        print("nothing to plot")
