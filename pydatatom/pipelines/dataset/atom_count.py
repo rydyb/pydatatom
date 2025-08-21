@@ -49,6 +49,8 @@ class AtomCountStep(Step):
 
         bincenters = (binedges[:-1] + binedges[1:]) / 2
 
+        thresholds = np.zeros((nimages, natoms))
+
         fits = []
         for i in range(counts.shape[0]):
             fit = []
@@ -71,18 +73,18 @@ class AtomCountStep(Step):
                         "threshold": threshold.threshold,
                     }
                 )
+                thresholds[i, j] = threshold.threshold
             fits.append(fit)
 
         context["atom_binedges"] = binedges
         context["atom_bincenters"] = bincenters
         context["atom_counts"] = counts
         context["atom_fits"] = fits
+        context["atom_thresholds"] = thresholds
 
     def transform(self, context: AtomCropState, dataset: Dataset):
-        return dataset
-        # reduce = lambda patches: patches.mean(axis=0)
-
-        # return Transform(dataset, reduce)
+        thresholds = context["atom_thresholds"]
+        return Transform(dataset, lambda x: x.mean(axis=(2, 3)) > thresholds)
 
     def plot(self, context: AtomCropState):
         from matplotlib import pyplot as plt
