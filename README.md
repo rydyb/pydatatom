@@ -1,4 +1,4 @@
-# pyeval
+# pydatatom
 
 Package for fast, simple and modular evaluation of atom images.
 
@@ -16,7 +16,7 @@ source .venv/bin/activate
 
 Install the dependencies (if not done already):
 ```shell
-pip install git+https://github.com/rydyb/pyeval.git
+pip install git+https://github.com/rydyb/pydatatom.git
 ```
 
 ## Usage
@@ -27,7 +27,7 @@ See the notebooks directory for usage examples.
 
 Clone the repository:
 ```shell
-git clone https://github.com/rydyb/pyeval.git
+git clone https://github.com/rydyb/pydatatom.git
 ```
 
 Repeat the steps to setup and activate a virtual environment and install the jupyterlab dependencies referring to the local repository:
