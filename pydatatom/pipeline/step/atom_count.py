@@ -1,9 +1,10 @@
 import numpy as np
 from dataclasses import dataclass
-from pydatatom.datasets import Dataset, Transform
-from pydatatom.detectors import GaussianCurveDetector, GaussianThresholdDetector
 
-from ..step import Step
+from pydatatom.dataset import Dataset, Transform
+from pydatatom.detector import GaussianCurveDetector, GaussianThresholdDetector
+
+from .step import Step
 from .atom_crop import AtomCropState
 
 

@@ -1,8 +1,10 @@
 import numpy as np
 from dataclasses import dataclass
-from pydatatom.datasets import Dataset, Transform
-from pydatatom.transforms import PointCrop
-from pydatatom.detectors import TopNNMSBlobDetector
+
+from pydatatom.dataset import Dataset, Transform
+from pydatatom.transform import PointCrop
+from pydatatom.detector import TopNNMSBlobDetector
+
 from ..step import Step
 from .image_mean import ImageMeanState
 

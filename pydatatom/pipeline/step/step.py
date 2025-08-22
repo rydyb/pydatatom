@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from pydatatom.datasets import Dataset
+
+from pydatatom.dataset import Dataset
 
 
 class Step(ABC):

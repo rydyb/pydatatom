@@ -1,7 +1,8 @@
 import numpy as np
 
-from pydatatom.datasets import Transform
-from ..step import Step
+from pydatatom.dataset import Transform
+
+from .step import Step
 
 
 class AtomStatsStep(Step):

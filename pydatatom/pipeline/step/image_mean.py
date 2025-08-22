@@ -1,7 +1,9 @@
 import numpy as np
 from dataclasses import dataclass
-from pydatatom.datasets import Dataset
-from ..step import Step
+
+from pydatatom.dataset import Dataset
+
+from .step import Step
 
 
 @dataclass
@@ -13,7 +15,7 @@ class ImageMeanState:
 class ImageMeanStep(Step):
     def fit(self, context: ImageMeanState, dataset: Dataset):
         sum = None
-        vmin = vmax = count = 0
+        count = 0
 
         for image in dataset:
             if sum is None:
