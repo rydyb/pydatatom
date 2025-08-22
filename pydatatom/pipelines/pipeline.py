@@ -15,9 +15,13 @@ class Pipeline:
         else:
             self.steps.insert(index, step)
 
-    def run(self, dataset):
+    def fit(self, dataset):
         for step in self.steps:
             step.fit(self.context, dataset)
+            dataset = step.transform(self.context, dataset)
+
+    def transform(self, dataset):
+        for step in self.steps:
             dataset = step.transform(self.context, dataset)
 
         return dataset

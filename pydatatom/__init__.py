@@ -1,5 +1,5 @@
-from .datasets import Dataset, GlobDataset, GzipPickleDataset, Transform
-from .transforms import PickKey, PointCrop
+from .datasets import Dataset, GlobDataset, GzipPickleDataset, Transform, Combine
+from .transforms import PickKey, DropKeys, PointCrop
 from .pipelines import (
     Pipeline,
     Step,
@@ -7,6 +7,7 @@ from .pipelines import (
     ImageMeanStep,
     AtomCropStep,
     AtomCountStep,
+    AtomStatsStep,
 )
 from .detectors import (
     BlobDetector,
@@ -20,7 +21,9 @@ __all__ = [
     "GlobDataset",
     "GzipPickleDataset",
     "Transform",
+    "Combine",
     "PickKey",
+    "DropKeys",
     "PointCrop",
     "Pipeline",
     "Step",
@@ -28,6 +31,7 @@ __all__ = [
     "ImageMeanStep",
     "AtomCropStep",
     "AtomCountStep",
+    "AtomStatsStep",
     "BlobDetector",
     "TopNNMSBlobDetector",
     "ThresholdDetector",
