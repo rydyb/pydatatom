@@ -1,5 +1,5 @@
 from .dataset import Dataset, GlobDataset, GzipPickleDataset, Transform, Combine
-from .transform import PickKey, DropKeys, PointCrop
+from .transform import PickKey, PickType, DropKeys, PointCrop
 from .pipeline import (
     Pipeline,
     Step,
@@ -23,6 +23,7 @@ __all__ = [
     "Transform",
     "Combine",
     "PickKey",
+    "PickType",
     "DropKeys",
     "PointCrop",
     "Pipeline",
