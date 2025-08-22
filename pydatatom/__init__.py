@@ -1,5 +1,5 @@
 from .dataset import Dataset, GlobDataset, GzipPickleDataset, Transform, Combine
-from .transform import PickKey, PickType, DropKeys, PointCrop
+from .transform import Compose, PickKey, PickType, DropKeys, PointCrop
 from .pipeline import (
     Pipeline,
     Step,
@@ -15,12 +15,14 @@ from .detector import (
     ThresholdDetector,
     GaussianThresholdDetector,
 )
+from .measurement import Measurement, Spectroscopy
 
 __all__ = [
     "Dataset",
     "GlobDataset",
     "GzipPickleDataset",
     "Transform",
+    "Compose",
     "Combine",
     "PickKey",
     "PickType",
@@ -37,4 +39,6 @@ __all__ = [
     "TopNNMSBlobDetector",
     "ThresholdDetector",
     "GaussianThresholdDetector",
+    "Measurement",
+    "Spectroscopy",
 ]

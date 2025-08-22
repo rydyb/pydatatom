@@ -37,7 +37,7 @@ class AtomCountStep(Step):
         nimages = image_mean.shape[0]
         nbins = self.num_bins
 
-        _, binedges = np.histogram(image_mean, bins=nbins)
+        binedges = np.histogram_bin_edges(image_mean, bins=nbins)
         counts = np.zeros((nimages, natoms, nbins), dtype=int)
 
         i, j = np.indices((nimages, natoms))
