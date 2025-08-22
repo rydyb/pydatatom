@@ -1,6 +1,6 @@
 import numpy as np
-from math import erf
-from lmfit import minimize, Model, Parameters
+from lmfit import Model, Parameters
+from .detector import CurveDetector
 
 
 def gaussian_mixture(x, **params):
@@ -65,7 +65,7 @@ def shortest_mass_interval(x, y, mass=0.95):
     return x_right - x_left
 
 
-class GaussianMixture:
+class GaussianCurveDetector(CurveDetector):
     def __init__(self, n: int):
         self.n = n
         self.model = Model(gaussian_mixture)
@@ -118,34 +118,3 @@ class GaussianMixture:
     @property
     def offset(self):
         return np.array([self.result.params["offset"].value])
-
-
-def double_gaussian_mixture_overlap_infidelity(params, amp, mean, width):
-    threshold = params["threshold"].value
-    weight = amp * width
-
-    return weight[0] * (erf((mean[0] - threshold) / width[0]) + 1.0) + weight[1] * (
-        erf((threshold - mean[1]) / width[1]) + 1.0
-    )
-
-
-class DoubleGaussianMixtureOverlap:
-    def __init__(self):
-        self.result = None
-
-    def minimize(self, amplitude, mean, width):
-        params = Parameters()
-        params.add("threshold", value=mean.mean(), min=mean.min(), max=mean.max())
-
-        self.result = minimize(
-            double_gaussian_mixture_overlap_infidelity,
-            params,
-            args=(amplitude, mean, width),
-            method="lbfgsb",
-        )
-
-    @property
-    def threshold(self):
-        if self.result is None:
-            raise ValueError("Model has not been fitted yet")
-        return self.result.params["threshold"].value
