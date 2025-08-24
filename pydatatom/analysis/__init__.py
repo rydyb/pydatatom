@@ -1,6 +1,7 @@
 from .aggregate import aggregate
 from .resonance import fit_resonance, plot_resonance
 from .lifetime import fit_lifetime, plot_lifetime
+from .rabiosc import fit_rabiosc, plot_rabiosc
 
 __all__ = [
     "aggregate",
@@ -8,4 +9,6 @@ __all__ = [
     "plot_resonance",
     "fit_lifetime",
     "plot_lifetime",
+    "fit_rabiosc",
+    "plot_rabiosc",
 ]

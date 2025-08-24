@@ -21,6 +21,8 @@ from .analysis import (
     plot_resonance,
     fit_lifetime,
     plot_lifetime,
+    fit_rabiosc,
+    plot_rabiosc,
 )
 
 __all__ = [
@@ -50,4 +52,6 @@ __all__ = [
     "plot_resonance",
     "fit_lifetime",
     "plot_lifetime",
+    "fit_rabiosc",
+    "plot_rabiosc",
 ]
