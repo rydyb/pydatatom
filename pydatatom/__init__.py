@@ -15,7 +15,13 @@ from .detector import (
     ThresholdDetector,
     GaussianThresholdDetector,
 )
-from .measurement import Measurement, Spectroscopy
+from .analysis import (
+    aggregate,
+    fit_resonance,
+    plot_resonance,
+    fit_lifetime,
+    plot_lifetime,
+)
 
 __all__ = [
     "Dataset",
@@ -39,6 +45,9 @@ __all__ = [
     "TopNNMSBlobDetector",
     "ThresholdDetector",
     "GaussianThresholdDetector",
-    "Measurement",
-    "Spectroscopy",
+    "aggregate",
+    "fit_resonance",
+    "plot_resonance",
+    "fit_lifetime",
+    "plot_lifetime",
 ]
