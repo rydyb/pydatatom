@@ -7,6 +7,9 @@ class GlobDataset(Dataset):
         self.files = glob.glob(glob_pattern)
         self.files.sort()
 
+        if len(self.files) == 0:
+            raise RuntimeError(f"no files found for pattern: {glob_pattern}")
+
     def __len__(self):
         return len(self.files)
 

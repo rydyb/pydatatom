@@ -6,6 +6,7 @@ from .pipeline import (
     TransformStep,
     ImageMeanStep,
     AtomCropStep,
+    AtomCrop2Step,
     AtomCountStep,
     AtomStatsStep,
 )
@@ -13,6 +14,7 @@ from .detector import (
     BlobDetector,
     TopNNMSBlobDetector,
     ThresholdDetector,
+    InteractiveBBoxBlobDetector,
     GaussianThresholdDetector,
 )
 from .analysis import (
@@ -41,10 +43,12 @@ __all__ = [
     "TransformStep",
     "ImageMeanStep",
     "AtomCropStep",
+    "AtomCrop2Step",
     "AtomCountStep",
     "AtomStatsStep",
     "BlobDetector",
     "TopNNMSBlobDetector",
+    "InteractiveBBoxBlobDetector",
     "ThresholdDetector",
     "GaussianThresholdDetector",
     "aggregate",

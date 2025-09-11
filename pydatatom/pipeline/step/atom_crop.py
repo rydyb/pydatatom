@@ -48,4 +48,6 @@ class AtomCropStep(Step):
             edgecolors="r",
             linewidths=1.5,
         )
+        for idx, (y, x) in enumerate(context["atom_centers"].reshape(-1, 2)):
+            plt.text(x + 2, y + 2, str(idx), color="yellow", fontsize=9)
         plt.show()

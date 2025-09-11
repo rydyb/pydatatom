@@ -4,6 +4,7 @@ from .step import (
     TransformStep,
     ImageMeanStep,
     AtomCropStep,
+    AtomCrop2Step,
     AtomCountStep,
     AtomStatsStep,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "TransformStep",
     "ImageMeanStep",
     "AtomCropStep",
+    "AtomCrop2Step",
     "AtomCountStep",
     "AtomStatsStep",
 ]

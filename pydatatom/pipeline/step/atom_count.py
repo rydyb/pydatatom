@@ -1,8 +1,9 @@
 import numpy as np
 from dataclasses import dataclass
+from lmfit import Model, Parameters
 
 from pydatatom.dataset import Dataset, Transform
-from pydatatom.detector import GaussianCurveDetector, GaussianThresholdDetector
+from pydatatom.detector import GaussianThresholdDetector
 
 from .step import Step
 from .atom_crop import AtomCropState
@@ -27,11 +28,66 @@ def gaussian_mixture(x, **params):
     return y + params["offset"]
 
 
+class GaussianCurveDetector:
+    def __init__(self, n: int):
+        self.n = n
+        self.model = Model(gaussian_mixture)
+        self.result = None
+
+    def fit(self, x, y):
+        params = Parameters()
+
+        xmin = x.min()
+        xrange = np.percentile(x, 50) - xmin
+        xwidth = xrange / self.n
+
+        for i in range(self.n):
+            xstart = xmin + xwidth * i
+            xend = xmin + xwidth * (i + 1)
+            xbuf = xwidth * 0.1
+
+            params.add(
+                f"amp{i}", value=y.mean(), min=np.percentile(y, 0.1), max=y.max()
+            )
+            params.add(
+                f"mean{i}",
+                value=xstart + xwidth / 2,
+                min=xstart + xbuf,
+                max=xend - xbuf,
+            )
+            params.add(f"width{i}", value=x.std(), min=x.std() / 10, max=x.var())
+
+        params.add("offset", value=y.min(), vary=False)
+
+        self.result = self.model.fit(y, params, x=x, method="lbfgsb")
+
+    def predict(self, x):
+        if self.result is None:
+            raise ValueError("Model has not been fitted yet")
+        return self.result.eval(x=x)
+
+    @property
+    def amplitude(self):
+        return np.array([self.result.params[f"amp{i}"].value for i in range(self.n)])
+
+    @property
+    def mean(self):
+        return np.array([self.result.params[f"mean{i}"].value for i in range(self.n)])
+
+    @property
+    def width(self):
+        return np.array([self.result.params[f"width{i}"].value for i in range(self.n)])
+
+    @property
+    def offset(self):
+        return np.array([self.result.params["offset"].value])
+
+
 class AtomCountStep(Step):
     def __init__(self, num_bins: int = 100):
         self.num_bins = num_bins
 
-    def fit(self, context: AtomCropState, dataset: Dataset):
+    def fit(self, context: dict, dataset: Dataset):
         natoms = context["atom_centers"].shape[0]
         image_mean = context["image_mean"]
         nimages = image_mean.shape[0]
@@ -72,6 +128,10 @@ class AtomCountStep(Step):
                         "width1": curve.width[1],
                         "offset": curve.offset[0],
                         "threshold": threshold.threshold,
+                        "mean0_min": curve.result.params["mean0"].min,
+                        "mean0_max": curve.result.params["mean0"].max,
+                        "mean1_min": curve.result.params["mean1"].min,
+                        "mean1_max": curve.result.params["mean1"].max,
                     }
                 )
                 thresholds[i, j] = threshold.threshold
@@ -83,11 +143,11 @@ class AtomCountStep(Step):
         context["atom_fits"] = fits
         context["atom_thresholds"] = thresholds
 
-    def transform(self, context: AtomCropState, dataset: Dataset):
+    def transform(self, context: dict, dataset: Dataset):
         thresholds = context["atom_thresholds"]
         return Transform(dataset, lambda x: x.mean(axis=(2, 3)) > thresholds)
 
-    def plot(self, context: AtomCropState):
+    def plot(self, context: dict):
         from matplotlib import pyplot as plt
 
         nimages = context["atom_counts"].shape[0]
@@ -149,6 +209,18 @@ class AtomCountStep(Step):
                     color="orange",
                     linewidth=1.5,
                     linestyle="dotted",
+                )
+                ax.fill_between(
+                    [fit["mean0_min"], fit["mean0_max"]],
+                    y.max(),
+                    alpha=0.2,
+                    color="orange",
+                )
+                ax.fill_between(
+                    [fit["mean1_min"], fit["mean1_max"]],
+                    y.max(),
+                    alpha=0.2,
+                    color="orange",
                 )
 
                 ax.set_title(f"Image {i}, Spot {j}")
